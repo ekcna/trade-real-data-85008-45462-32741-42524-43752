@@ -80,6 +80,16 @@ const TradingPanel = ({ selectedCoin }: TradingPanelProps) => {
     const totalValue = amount ? parseFloat(amount) : selectedCoin.current_price * parseFloat(quantity || "0");
     const tradeQuantity = parseFloat(quantity || "0");
 
+    // Validate positive amounts
+    if (totalValue <= 0 || tradeQuantity <= 0 || isNaN(totalValue) || isNaN(tradeQuantity)) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid positive amount.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Check wallet balance for buy orders
     if (type === "buy" && totalValue > walletBalance) {
       toast({
@@ -242,9 +252,13 @@ const TradingPanel = ({ selectedCoin }: TradingPanelProps) => {
                 type="number"
                 placeholder="0.00"
                 value={quantity}
+                min="0"
+                step="0.00000001"
                 onChange={(e) => {
-                  setQuantity(e.target.value);
-                  setAmount((parseFloat(e.target.value) * selectedCoin.current_price).toFixed(2));
+                  const value = e.target.value;
+                  if (parseFloat(value) < 0) return;
+                  setQuantity(value);
+                  setAmount((parseFloat(value) * selectedCoin.current_price).toFixed(2));
                 }}
                 className="bg-secondary"
               />
@@ -257,9 +271,13 @@ const TradingPanel = ({ selectedCoin }: TradingPanelProps) => {
                 type="number"
                 placeholder="0.00"
                 value={amount}
+                min="0"
+                step="0.01"
                 onChange={(e) => {
-                  setAmount(e.target.value);
-                  setQuantity((parseFloat(e.target.value) / selectedCoin.current_price).toFixed(8));
+                  const value = e.target.value;
+                  if (parseFloat(value) < 0) return;
+                  setAmount(value);
+                  setQuantity((parseFloat(value) / selectedCoin.current_price).toFixed(8));
                 }}
                 className="bg-secondary"
               />
@@ -288,9 +306,13 @@ const TradingPanel = ({ selectedCoin }: TradingPanelProps) => {
                 type="number"
                 placeholder="0.00"
                 value={quantity}
+                min="0"
+                step="0.00000001"
                 onChange={(e) => {
-                  setQuantity(e.target.value);
-                  setAmount((parseFloat(e.target.value) * selectedCoin.current_price).toFixed(2));
+                  const value = e.target.value;
+                  if (parseFloat(value) < 0) return;
+                  setQuantity(value);
+                  setAmount((parseFloat(value) * selectedCoin.current_price).toFixed(2));
                 }}
                 className="bg-secondary"
               />
@@ -303,9 +325,13 @@ const TradingPanel = ({ selectedCoin }: TradingPanelProps) => {
                 type="number"
                 placeholder="0.00"
                 value={amount}
+                min="0"
+                step="0.01"
                 onChange={(e) => {
-                  setAmount(e.target.value);
-                  setQuantity((parseFloat(e.target.value) / selectedCoin.current_price).toFixed(8));
+                  const value = e.target.value;
+                  if (parseFloat(value) < 0) return;
+                  setAmount(value);
+                  setQuantity((parseFloat(value) / selectedCoin.current_price).toFixed(8));
                 }}
                 className="bg-secondary"
               />

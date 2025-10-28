@@ -3,11 +3,21 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Copy, TrendingUp, TrendingDown } from 'lucide-react';
+import { Copy, TrendingUp, TrendingDown, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 const fetchCryptoPrice = async (coinId: string) => {
   const response = await fetch(
@@ -23,6 +33,11 @@ const Wallet = () => {
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState<number>(0);
   const [walletAddresses, setWalletAddresses] = useState<Record<string, string>>({});
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [sendAddress, setSendAddress] = useState('');
+  const [sendAmount, setSendAmount] = useState('');
+  const [sendingCurrency, setSendingCurrency] = useState('bitcoin');
+  const [sendLoading, setSendLoading] = useState(false);
 
   // Fetch prices with auto-refresh every 30 seconds
   const { data: bitcoinData } = useQuery({
@@ -132,6 +147,97 @@ const Wallet = () => {
     }
   };
 
+  const handleSend = async () => {
+    if (!sendAddress || !sendAmount) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please enter both address and amount',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const amount = parseFloat(sendAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: 'Invalid Amount',
+        description: 'Please enter a valid positive amount',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate address format based on currency
+    const addressValidation = {
+      bitcoin: /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,90}$/,
+      ethereum: /^0x[a-fA-F0-9]{40}$/,
+      solana: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
+      tether: /^0x[a-fA-F0-9]{40}$/,
+    };
+
+    if (!addressValidation[sendingCurrency as keyof typeof addressValidation].test(sendAddress)) {
+      toast({
+        title: 'Invalid Address',
+        description: `Please enter a valid ${sendingCurrency.toUpperCase()} address`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if user has enough balance (convert crypto to USD)
+    const cryptoPrices: Record<string, any> = {
+      bitcoin: bitcoinData?.bitcoin,
+      ethereum: ethereumData?.ethereum,
+      solana: solanaData?.solana,
+      tether: tetherData?.tether,
+    };
+
+    const cryptoPrice = cryptoPrices[sendingCurrency]?.usd || 0;
+    const totalUSD = amount * cryptoPrice;
+
+    if (totalUSD > balance) {
+      toast({
+        title: 'Insufficient Balance',
+        description: `You need $${totalUSD.toFixed(2)} but only have $${balance.toFixed(2)}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSendLoading(true);
+    try {
+      // Deduct from wallet balance
+      const newBalance = balance - totalUSD;
+      
+      const { error } = await supabase
+        .from('wallets' as any)
+        .update({ balance_usd: newBalance } as any)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      setBalance(newBalance);
+
+      toast({
+        title: 'Transfer Successful!',
+        description: `Sent ${amount} ${sendingCurrency.toUpperCase()} to ${sendAddress.substring(0, 10)}...`,
+      });
+
+      setSendDialogOpen(false);
+      setSendAddress('');
+      setSendAmount('');
+    } catch (error: any) {
+      console.error('Error sending crypto:', error);
+      toast({
+        title: 'Transfer Failed',
+        description: error.message || 'Failed to send crypto',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendLoading(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -189,7 +295,7 @@ const Wallet = () => {
                     </div>
                   </div>
                   
-                  <div>
+                   <div>
                     <p className="text-sm font-medium mb-2">Your {currency.toUpperCase()} Address</p>
                     <div className="flex items-center gap-2 p-3 bg-secondary/50 rounded-lg border border-border">
                       <code className="flex-1 text-sm font-mono break-all">{address}</code>
@@ -203,6 +309,67 @@ const Wallet = () => {
                       </Button>
                     </div>
                   </div>
+                  
+                  <Dialog open={sendDialogOpen && sendingCurrency === currency} onOpenChange={(open) => {
+                    setSendDialogOpen(open);
+                    if (open) setSendingCurrency(currency);
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        className="w-full gap-2" 
+                        onClick={() => setSendingCurrency(currency)}
+                      >
+                        <Send className="w-4 h-4" />
+                        Send {currency.toUpperCase()}
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Send {currency.toUpperCase()}</DialogTitle>
+                        <DialogDescription>
+                          Enter the recipient's address and amount to send
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="send-address">Recipient Address</Label>
+                          <Input
+                            id="send-address"
+                            placeholder={`Enter ${currency.toUpperCase()} address`}
+                            value={sendAddress}
+                            onChange={(e) => setSendAddress(e.target.value)}
+                            className="font-mono text-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="send-amount">Amount</Label>
+                          <Input
+                            id="send-amount"
+                            type="number"
+                            placeholder="0.00"
+                            value={sendAmount}
+                            min="0"
+                            step="0.00000001"
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (parseFloat(value) < 0) return;
+                              setSendAmount(value);
+                            }}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Available balance: ${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                        <Button 
+                          className="w-full" 
+                          onClick={handleSend}
+                          disabled={sendLoading}
+                        >
+                          {sendLoading ? 'Sending...' : `Send ${currency.toUpperCase()}`}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </TabsContent>
               );
             })}

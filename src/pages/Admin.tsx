@@ -322,29 +322,49 @@ const Admin = () => {
                         }
 
                         try {
-                          const { data: wallet } = await supabase
+                          const { data: wallet, error: fetchError } = await supabase
                             .from('wallets' as any)
                             .select('balance_usd')
                             .eq('user_id', user.id)
-                            .single();
+                            .maybeSingle();
 
-                          const newBalance = ((wallet as any)?.balance_usd || 0) + amount;
+                          if (fetchError) throw fetchError;
 
-                          const { error } = await supabase
-                            .from('wallets' as any)
-                            .update({ balance_usd: newBalance })
-                            .eq('user_id', user.id);
+                          if (!wallet) {
+                            // Create wallet if it doesn't exist
+                            const { error: createError } = await supabase
+                              .from('wallets' as any)
+                              .insert({
+                                user_id: user.id,
+                                balance_usd: amount
+                              } as any);
 
-                          if (error) throw error;
+                            if (createError) throw createError;
 
-                          toast({
-                            title: "Balance Updated",
-                            description: `Added $${amount.toLocaleString()} to your account`,
-                          });
+                            toast({
+                              title: "Wallet Created & Balance Added",
+                              description: `Added $${amount.toLocaleString()} to your new account`,
+                            });
+                          } else {
+                            const newBalance = ((wallet as any)?.balance_usd || 0) + amount;
+
+                            const { error: updateError } = await supabase
+                              .from('wallets' as any)
+                              .update({ balance_usd: newBalance } as any)
+                              .eq('user_id', user.id);
+
+                            if (updateError) throw updateError;
+
+                            toast({
+                              title: "Balance Updated",
+                              description: `Added $${amount.toLocaleString()} to your account`,
+                            });
+                          }
 
                           fetchWallets();
                           setBalanceInput(prev => ({ ...prev, 'admin-self': '' }));
                         } catch (error: any) {
+                          console.error('Error updating balance:', error);
                           toast({
                             title: "Update Error",
                             description: error.message || "Failed to update balance",
