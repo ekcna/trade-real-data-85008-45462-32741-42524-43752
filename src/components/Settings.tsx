@@ -118,16 +118,6 @@ const Settings = () => {
       return;
     }
 
-    // Prevent admin from adding funds to themselves
-    if (targetUserId === user?.id) {
-      toast({
-        title: 'Not Allowed',
-        description: 'You cannot add funds to your own account',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setLoading(true);
     try {
       // Get current balance
@@ -346,7 +336,7 @@ const Settings = () => {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Add USD to another user's wallet balance (cannot add to your own account)
+                Add USD to any user's wallet balance (including your own)
               </p>
             </div>
           </div>
