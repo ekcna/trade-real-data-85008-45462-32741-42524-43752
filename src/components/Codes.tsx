@@ -27,7 +27,7 @@ const Codes = () => {
     try {
       // Check if code exists and is active
       const { data: existingCode, error: existingError } = await supabase
-        .from('admin_codes' as any)
+        .from('admin_codes')
         .select('*')
         .eq('code', code.toUpperCase())
         .eq('is_active', true)
@@ -44,7 +44,7 @@ const Codes = () => {
 
       // Check if user already has admin role
       const { data: existingRole, error: roleCheckError } = await supabase
-        .from('user_roles' as any)
+        .from('user_roles')
         .select('*')
         .eq('user_id', user?.id)
         .eq('role', 'admin')
@@ -60,11 +60,11 @@ const Codes = () => {
 
       // Add admin role
       const { error: insertError } = await supabase
-        .from('user_roles' as any)
+        .from('user_roles')
         .insert({
           user_id: user?.id,
           role: 'admin'
-        } as any);
+        });
 
       if (insertError) {
         toast({
@@ -77,13 +77,13 @@ const Codes = () => {
 
       // Mark code as used
       const { error: updateError } = await supabase
-        .from('admin_codes' as any)
+        .from('admin_codes')
         .update({
           used_by: user?.id,
           used_at: new Date().toISOString(),
           is_active: false
-        } as any)
-        .eq('id', (existingCode as any).id);
+        })
+        .eq('id', existingCode.id);
 
       toast({
         title: 'Success!',

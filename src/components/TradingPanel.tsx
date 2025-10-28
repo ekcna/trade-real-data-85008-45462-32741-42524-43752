@@ -29,26 +29,26 @@ const TradingPanel = ({ selectedCoin }: TradingPanelProps) => {
       if (!user) return;
 
       const { data, error: walletError } = await supabase
-        .from('wallets' as any)
+        .from('wallets')
         .select('balance_usd')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (walletError || !data) {
         const { data: newWallet, error: createError } = await supabase
-          .from('wallets' as any)
+          .from('wallets')
           .insert({
             user_id: user.id,
             balance_usd: 10000
-          } as any)
+          })
           .select()
           .single();
 
         if (createError) throw createError;
-        const currentBalance = (newWallet as any)?.balance_usd || 0;
+        const currentBalance = newWallet?.balance_usd || 0;
         setWalletBalance(currentBalance);
       } else {
-        const currentBalance = (data as any)?.balance_usd || 0;
+        const currentBalance = data?.balance_usd || 0;
         setWalletBalance(currentBalance);
       }
     } catch (error) {
@@ -128,7 +128,7 @@ const TradingPanel = ({ selectedCoin }: TradingPanelProps) => {
         return;
       }
 
-      const { error } = await supabase.from('trades' as any).insert({
+      const { error } = await supabase.from('trades').insert({
         user_id: user.id,
         coin_id: selectedCoin.id,
         coin_symbol: selectedCoin.symbol,
@@ -137,7 +137,7 @@ const TradingPanel = ({ selectedCoin }: TradingPanelProps) => {
         quantity: parseFloat(quantity || "0"),
         price_usd: selectedCoin.current_price,
         total_usd: totalValue,
-      } as any);
+      });
 
       if (error) throw error;
 
@@ -147,8 +147,8 @@ const TradingPanel = ({ selectedCoin }: TradingPanelProps) => {
         : walletBalance + totalValue;
 
       const { error: walletError } = await supabase
-        .from('wallets' as any)
-        .update({ balance_usd: newBalance } as any)
+        .from('wallets')
+        .update({ balance_usd: newBalance })
         .eq('user_id', user.id);
 
       if (walletError) throw walletError;

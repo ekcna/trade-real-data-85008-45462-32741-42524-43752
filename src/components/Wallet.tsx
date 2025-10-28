@@ -81,24 +81,24 @@ const Wallet = () => {
     try {
       // Fetch wallet balance
       const { data: walletData } = await supabase
-        .from('wallets' as any)
+        .from('wallets')
         .select('balance_usd')
         .eq('user_id', user?.id)
         .maybeSingle();
 
       if (walletData) {
-        setBalance((walletData as any).balance_usd);
+        setBalance(walletData.balance_usd);
       }
 
       // Fetch wallet addresses
       const { data: addresses } = await supabase
-        .from('wallet_addresses' as any)
+        .from('wallet_addresses')
         .select('*')
         .eq('user_id', user?.id);
 
-      if (addresses && (addresses as any[]).length > 0) {
+      if (addresses && addresses.length > 0) {
         const addressMap: Record<string, string> = {};
-        (addresses as any[]).forEach(addr => {
+        addresses.forEach(addr => {
           addressMap[addr.currency] = addr.address;
         });
         setWalletAddresses(addressMap);
@@ -106,24 +106,24 @@ const Wallet = () => {
         // Create addresses if they don't exist
         const currencies = ['bitcoin', 'ethereum', 'solana', 'tether'];
         for (const currency of currencies) {
-          const address = await supabase.rpc('generate_crypto_address' as any, { currency });
+          const address = await supabase.rpc('generate_crypto_address', { currency });
           if (address.data) {
-            await supabase.from('wallet_addresses' as any).insert({
+            await supabase.from('wallet_addresses').insert({
               user_id: user?.id,
               currency,
               address: address.data
-            } as any);
+            });
           }
         }
         // Refetch after creating
         const { data: newAddresses } = await supabase
-          .from('wallet_addresses' as any)
+          .from('wallet_addresses')
           .select('*')
           .eq('user_id', user?.id);
         
         if (newAddresses) {
           const addressMap: Record<string, string> = {};
-          (newAddresses as any[]).forEach(addr => {
+          newAddresses.forEach(addr => {
             addressMap[addr.currency] = addr.address;
           });
           setWalletAddresses(addressMap);
@@ -210,8 +210,8 @@ const Wallet = () => {
       const newBalance = balance - totalUSD;
       
       const { error } = await supabase
-        .from('wallets' as any)
-        .update({ balance_usd: newBalance } as any)
+        .from('wallets')
+        .update({ balance_usd: newBalance })
         .eq('user_id', user?.id);
 
       if (error) throw error;

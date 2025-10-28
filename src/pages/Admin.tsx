@@ -62,7 +62,7 @@ const Admin = () => {
   const fetchTrades = async () => {
     try {
       const { data: tradesData, error: tradesError } = await supabase
-        .from('trades' as any)
+        .from('trades')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
@@ -72,7 +72,7 @@ const Admin = () => {
       // Fetch user profiles separately
       const userIds = [...new Set(tradesData?.map(t => t.user_id) || [])];
       const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles' as any)
+        .from('profiles')
         .select('id, email, full_name')
         .in('id', userIds);
 
@@ -95,7 +95,7 @@ const Admin = () => {
   const fetchWallets = async () => {
     try {
       const { data: walletsData, error: walletsError } = await supabase
-        .from('wallets' as any)
+        .from('wallets')
         .select('*')
         .order('balance_usd', { ascending: false });
 
@@ -103,7 +103,7 @@ const Admin = () => {
 
       const userIds = [...new Set(walletsData?.map(w => w.user_id) || [])];
       const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles' as any)
+        .from('profiles')
         .select('id, email, full_name')
         .in('id', userIds);
 
@@ -135,7 +135,7 @@ const Admin = () => {
       }
 
       const { error } = await supabase
-        .from('wallets' as any)
+        .from('wallets')
         .update({ balance_usd: balance })
         .eq('id', walletId);
 
@@ -323,7 +323,7 @@ const Admin = () => {
 
                         try {
                           const { data: wallet, error: fetchError } = await supabase
-                            .from('wallets' as any)
+                            .from('wallets')
                             .select('balance_usd')
                             .eq('user_id', user.id)
                             .maybeSingle();
@@ -333,11 +333,11 @@ const Admin = () => {
                           if (!wallet) {
                             // Create wallet if it doesn't exist
                             const { error: createError } = await supabase
-                              .from('wallets' as any)
+                              .from('wallets')
                               .insert({
                                 user_id: user.id,
                                 balance_usd: amount
-                              } as any);
+                              });
 
                             if (createError) throw createError;
 
@@ -346,11 +346,11 @@ const Admin = () => {
                               description: `Added $${amount.toLocaleString()} to your new account`,
                             });
                           } else {
-                            const newBalance = ((wallet as any)?.balance_usd || 0) + amount;
+                            const newBalance = (wallet?.balance_usd || 0) + amount;
 
                             const { error: updateError } = await supabase
-                              .from('wallets' as any)
-                              .update({ balance_usd: newBalance } as any)
+                              .from('wallets')
+                              .update({ balance_usd: newBalance })
                               .eq('user_id', user.id);
 
                             if (updateError) throw updateError;

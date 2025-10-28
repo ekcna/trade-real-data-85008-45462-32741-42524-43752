@@ -146,12 +146,12 @@ const Settings = () => {
         return;
       }
 
-      const newBalance = Number((walletData as any).balance_usd) + Number(amount);
+      const newBalance = Number(walletData.balance_usd) + Number(amount);
 
       // Update balance
       const { error } = await supabase
-        .from('wallets' as any)
-        .update({ balance_usd: newBalance } as any)
+        .from('wallets')
+        .update({ balance_usd: newBalance })
         .eq('user_id', targetUserId);
 
       if (error) throw error;
