@@ -109,10 +109,13 @@ const Settings = () => {
       return;
     }
 
-    if (!targetUserId || !targetUserId.trim()) {
+    // If no user ID is entered, use admin's own ID
+    const targetId = targetUserId.trim() || user?.id;
+
+    if (!targetId) {
       toast({
-        title: 'Missing User ID',
-        description: 'Please enter a user ID',
+        title: 'Error',
+        description: 'Unable to determine target user',
         variant: 'destructive',
       });
       return;
@@ -124,7 +127,7 @@ const Settings = () => {
       const { data: walletData } = await supabase
         .from('wallets')
         .select('balance_usd')
-        .eq('user_id', targetUserId)
+        .eq('user_id', targetId)
         .maybeSingle();
 
       if (!walletData) {
@@ -142,13 +145,17 @@ const Settings = () => {
       const { error } = await supabase
         .from('wallets')
         .update({ balance_usd: newBalance })
-        .eq('user_id', targetUserId);
+        .eq('user_id', targetId);
 
       if (error) throw error;
 
+      const targetMessage = targetId === user?.id 
+        ? "your wallet" 
+        : "user's wallet";
+
       toast({
         title: 'Success!',
-        description: `Added $${amount} to user's wallet`,
+        description: `Added $${amount} to ${targetMessage}`,
       });
 
       setAmount('');
@@ -303,7 +310,7 @@ const Settings = () => {
               <div className="space-y-2">
                 <Input
                   type="text"
-                  placeholder="User ID"
+                  placeholder="User ID (leave empty for your account)"
                   value={targetUserId}
                   onChange={(e) => setTargetUserId(e.target.value)}
                   disabled={loading}
@@ -324,7 +331,7 @@ const Settings = () => {
                   </div>
                   <Button
                     onClick={addFunds}
-                    disabled={loading || !amount || !targetUserId}
+                    disabled={loading || !amount}
                     className="shrink-0"
                   >
                     {loading ? (
@@ -336,7 +343,7 @@ const Settings = () => {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Add USD to any user's wallet balance (including your own)
+                Add USD to any wallet. Leave User ID empty to add to your own account.
               </p>
             </div>
           </div>
