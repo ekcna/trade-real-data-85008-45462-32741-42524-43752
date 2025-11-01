@@ -87,6 +87,47 @@ const Wallet = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (showQrScanner) {
+      // Wait for DOM to render
+      const timer = setTimeout(async () => {
+        try {
+          const html5QrCode = new Html5Qrcode("qr-reader");
+          qrScannerRef.current = html5QrCode;
+          
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 250 }
+            },
+            (decodedText) => {
+              setSendAddress(decodedText);
+              stopQrScanner();
+              toast({
+                title: 'QR Code Scanned!',
+                description: 'Address has been filled in',
+              });
+            },
+            (errorMessage) => {
+              // Handle scan error silently
+            }
+          );
+        } catch (err) {
+          console.error("Error starting QR scanner:", err);
+          toast({
+            title: 'Camera Error',
+            description: 'Unable to access camera. Please check permissions in your browser settings.',
+            variant: 'destructive',
+          });
+          setShowQrScanner(false);
+        }
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [showQrScanner]);
+
   const fetchHoldings = async () => {
     try {
       const { data: trades } = await supabase
@@ -183,39 +224,8 @@ const Wallet = () => {
     }
   };
 
-  const startQrScanner = async () => {
+  const startQrScanner = () => {
     setShowQrScanner(true);
-    try {
-      const html5QrCode = new Html5Qrcode("qr-reader");
-      qrScannerRef.current = html5QrCode;
-      
-      await html5QrCode.start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 }
-        },
-        (decodedText) => {
-          setSendAddress(decodedText);
-          stopQrScanner();
-          toast({
-            title: 'QR Code Scanned!',
-            description: 'Address has been filled in',
-          });
-        },
-        (errorMessage) => {
-          // Handle scan error silently
-        }
-      );
-    } catch (err) {
-      console.error("Error starting QR scanner:", err);
-      toast({
-        title: 'Camera Access Denied',
-        description: 'Please allow camera access to scan QR codes',
-        variant: 'destructive',
-      });
-      setShowQrScanner(false);
-    }
   };
 
   const stopQrScanner = async () => {
