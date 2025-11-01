@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Copy, TrendingUp, TrendingDown, Send, Download } from 'lucide-react';
+import { Copy, TrendingUp, TrendingDown, Send, Download, QrCode, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatLargeNumber } from '@/lib/utils';
+import { Html5Qrcode } from 'html5-qrcode';
 import {
   Dialog,
   DialogContent,
@@ -43,6 +44,9 @@ const Wallet = () => {
   const [receivingCurrency, setReceivingCurrency] = useState('bitcoin');
   const [sendLoading, setSendLoading] = useState(false);
   const [holdings, setHoldings] = useState<Record<string, number>>({});
+  const [showQrScanner, setShowQrScanner] = useState(false);
+  const [sendSuccess, setSendSuccess] = useState(false);
+  const qrScannerRef = useRef<Html5Qrcode | null>(null);
 
   // Fetch prices with auto-refresh every 30 seconds
   const { data: bitcoinData } = useQuery({
@@ -179,6 +183,53 @@ const Wallet = () => {
     }
   };
 
+  const startQrScanner = async () => {
+    setShowQrScanner(true);
+    try {
+      const html5QrCode = new Html5Qrcode("qr-reader");
+      qrScannerRef.current = html5QrCode;
+      
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 }
+        },
+        (decodedText) => {
+          setSendAddress(decodedText);
+          stopQrScanner();
+          toast({
+            title: 'QR Code Scanned!',
+            description: 'Address has been filled in',
+          });
+        },
+        (errorMessage) => {
+          // Handle scan error silently
+        }
+      );
+    } catch (err) {
+      console.error("Error starting QR scanner:", err);
+      toast({
+        title: 'Camera Access Denied',
+        description: 'Please allow camera access to scan QR codes',
+        variant: 'destructive',
+      });
+      setShowQrScanner(false);
+    }
+  };
+
+  const stopQrScanner = async () => {
+    if (qrScannerRef.current) {
+      try {
+        await qrScannerRef.current.stop();
+        qrScannerRef.current = null;
+      } catch (err) {
+        console.error("Error stopping scanner:", err);
+      }
+    }
+    setShowQrScanner(false);
+  };
+
   const handleSend = async () => {
     if (!sendAddress || !sendAmount) {
       toast({
@@ -249,6 +300,10 @@ const Wallet = () => {
       if (error) throw error;
 
       setBalance(newBalance);
+      setSendSuccess(true);
+
+      // Wait for animation
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       toast({
         title: 'Transfer Successful!',
@@ -258,6 +313,7 @@ const Wallet = () => {
       setSendDialogOpen(false);
       setSendAddress('');
       setSendAmount('');
+      setSendSuccess(false);
     } catch (error: any) {
       console.error('Error sending crypto:', error);
       toast({
@@ -384,51 +440,108 @@ const Wallet = () => {
                           Send
                         </Button>
                       </DialogTrigger>
-                      <DialogContent>
+                       <DialogContent className="max-w-md">
                         <DialogHeader>
                           <DialogTitle>Send {currency.toUpperCase()}</DialogTitle>
                           <DialogDescription>
                             Enter the recipient's address and amount to send
                           </DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-4 mt-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="send-address">Recipient Address</Label>
-                            <Input
-                              id="send-address"
-                              placeholder={`Enter ${currency.toUpperCase()} address`}
-                              value={sendAddress}
-                              onChange={(e) => setSendAddress(e.target.value)}
-                              className="font-mono text-sm"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="send-amount">Amount</Label>
-                            <Input
-                              id="send-amount"
-                              type="number"
-                              placeholder="0.00"
-                              value={sendAmount}
-                              min="0"
-                              step="0.00000001"
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (parseFloat(value) < 0) return;
-                                setSendAmount(value);
-                              }}
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              Available balance: ${formatLargeNumber(balance)}
+                        
+                        {sendSuccess ? (
+                          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+                            <div className="relative">
+                              <div className="w-20 h-20 rounded-full bg-success/20 flex items-center justify-center animate-scale-in">
+                                <Send className="w-10 h-10 text-success animate-fade-in" />
+                              </div>
+                              <div className="absolute inset-0 rounded-full bg-success/20 animate-ping" />
+                            </div>
+                            <p className="text-lg font-semibold text-success animate-fade-in">
+                              Transaction Successful!
                             </p>
                           </div>
-                          <Button 
-                            className="w-full" 
-                            onClick={handleSend}
-                            disabled={sendLoading}
-                          >
-                            {sendLoading ? 'Sending...' : `Send ${currency.toUpperCase()}`}
-                          </Button>
-                        </div>
+                        ) : (
+                          <div className="space-y-4 mt-4">
+                            {showQrScanner ? (
+                              <div className="space-y-4">
+                                <div className="relative">
+                                  <div 
+                                    id="qr-reader" 
+                                    className="rounded-lg overflow-hidden border-2 border-primary"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="absolute top-2 right-2"
+                                    onClick={stopQrScanner}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                                <p className="text-sm text-center text-muted-foreground">
+                                  Position the QR code within the frame
+                                </p>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="space-y-2">
+                                  <Label htmlFor="send-address">Recipient Address</Label>
+                                  <div className="flex gap-2">
+                                    <Input
+                                      id="send-address"
+                                      placeholder={`Enter ${currency.toUpperCase()} address`}
+                                      value={sendAddress}
+                                      onChange={(e) => setSendAddress(e.target.value)}
+                                      className="font-mono text-sm flex-1"
+                                    />
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="outline"
+                                      onClick={startQrScanner}
+                                      className="shrink-0"
+                                    >
+                                      <QrCode className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="send-amount">Amount</Label>
+                                  <Input
+                                    id="send-amount"
+                                    type="number"
+                                    placeholder="0.00"
+                                    value={sendAmount}
+                                    min="0"
+                                    step="0.00000001"
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      if (parseFloat(value) < 0) return;
+                                      setSendAmount(value);
+                                    }}
+                                  />
+                                  <p className="text-xs text-muted-foreground">
+                                    Available balance: ${formatLargeNumber(balance)}
+                                  </p>
+                                </div>
+                                <Button 
+                                  className="w-full transition-all duration-300 hover:scale-105" 
+                                  onClick={handleSend}
+                                  disabled={sendLoading}
+                                >
+                                  {sendLoading ? (
+                                    <span className="flex items-center gap-2">
+                                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                      Sending...
+                                    </span>
+                                  ) : (
+                                    `Send ${currency.toUpperCase()}`
+                                  )}
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </DialogContent>
                     </Dialog>
 
