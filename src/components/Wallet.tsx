@@ -3,13 +3,15 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Copy, TrendingUp, TrendingDown, Send } from 'lucide-react';
+import { Copy, TrendingUp, TrendingDown, Send, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { QRCodeSVG } from 'qrcode.react';
+import { formatLargeNumber } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -34,10 +36,13 @@ const Wallet = () => {
   const [balance, setBalance] = useState<number>(0);
   const [walletAddresses, setWalletAddresses] = useState<Record<string, string>>({});
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [receiveDialogOpen, setReceiveDialogOpen] = useState(false);
   const [sendAddress, setSendAddress] = useState('');
   const [sendAmount, setSendAmount] = useState('');
   const [sendingCurrency, setSendingCurrency] = useState('bitcoin');
+  const [receivingCurrency, setReceivingCurrency] = useState('bitcoin');
   const [sendLoading, setSendLoading] = useState(false);
+  const [holdings, setHoldings] = useState<Record<string, number>>({});
 
   // Fetch prices with auto-refresh every 30 seconds
   const { data: bitcoinData } = useQuery({
@@ -74,8 +79,35 @@ const Wallet = () => {
   useEffect(() => {
     if (user) {
       fetchWalletData();
+      fetchHoldings();
     }
   }, [user]);
+
+  const fetchHoldings = async () => {
+    try {
+      const { data: trades } = await supabase
+        .from('trades')
+        .select('*')
+        .eq('user_id', user?.id);
+
+      if (trades) {
+        const holdingsMap: Record<string, number> = {};
+        trades.forEach(trade => {
+          const coinId = trade.coin_id;
+          const quantity = parseFloat(trade.quantity.toString());
+          
+          if (trade.trade_type === 'buy') {
+            holdingsMap[coinId] = (holdingsMap[coinId] || 0) + quantity;
+          } else if (trade.trade_type === 'sell') {
+            holdingsMap[coinId] = (holdingsMap[coinId] || 0) - quantity;
+          }
+        });
+        setHoldings(holdingsMap);
+      }
+    } catch (error) {
+      console.error('Error fetching holdings:', error);
+    }
+  };
 
   const fetchWalletData = async () => {
     try {
@@ -255,10 +287,38 @@ const Wallet = () => {
         <div className="text-center space-y-4">
           <p className="text-muted-foreground text-sm">Total Balance</p>
           <h2 className="text-5xl font-bold">
-            ${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${formatLargeNumber(balance)}
           </h2>
         </div>
       </Card>
+
+      {/* Holdings Card */}
+      {Object.keys(holdings).length > 0 && (
+        <Card className="glass-card p-6">
+          <h3 className="text-lg font-semibold mb-4">Your Holdings</h3>
+          <div className="space-y-3">
+            {Object.entries(holdings).map(([coinId, quantity]) => {
+              if (quantity <= 0) return null;
+              const priceData = cryptoPrices[coinId];
+              const currentPrice = priceData?.usd || 0;
+              const totalValue = quantity * currentPrice;
+              
+              return (
+                <div key={coinId} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+                  <div>
+                    <p className="font-semibold uppercase">{coinId}</p>
+                    <p className="text-sm text-muted-foreground">{quantity.toFixed(8)} coins</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold">${formatLargeNumber(totalValue)}</p>
+                    <p className="text-xs text-muted-foreground">${currentPrice.toLocaleString()}/coin</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Crypto Prices and Wallet Addresses */}
       {Object.keys(walletAddresses).length > 0 && (
@@ -310,66 +370,116 @@ const Wallet = () => {
                     </div>
                   </div>
                   
-                  <Dialog open={sendDialogOpen && sendingCurrency === currency} onOpenChange={(open) => {
-                    setSendDialogOpen(open);
-                    if (open) setSendingCurrency(currency);
-                  }}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        className="w-full gap-2" 
-                        onClick={() => setSendingCurrency(currency)}
-                      >
-                        <Send className="w-4 h-4" />
-                        Send {currency.toUpperCase()}
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Send {currency.toUpperCase()}</DialogTitle>
-                        <DialogDescription>
-                          Enter the recipient's address and amount to send
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 mt-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="send-address">Recipient Address</Label>
-                          <Input
-                            id="send-address"
-                            placeholder={`Enter ${currency.toUpperCase()} address`}
-                            value={sendAddress}
-                            onChange={(e) => setSendAddress(e.target.value)}
-                            className="font-mono text-sm"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="send-amount">Amount</Label>
-                          <Input
-                            id="send-amount"
-                            type="number"
-                            placeholder="0.00"
-                            value={sendAmount}
-                            min="0"
-                            step="0.00000001"
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              if (parseFloat(value) < 0) return;
-                              setSendAmount(value);
-                            }}
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Available balance: ${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </p>
-                        </div>
+                  <div className="flex gap-2">
+                    <Dialog open={sendDialogOpen && sendingCurrency === currency} onOpenChange={(open) => {
+                      setSendDialogOpen(open);
+                      if (open) setSendingCurrency(currency);
+                    }}>
+                      <DialogTrigger asChild>
                         <Button 
-                          className="w-full" 
-                          onClick={handleSend}
-                          disabled={sendLoading}
+                          className="flex-1 gap-2" 
+                          onClick={() => setSendingCurrency(currency)}
                         >
-                          {sendLoading ? 'Sending...' : `Send ${currency.toUpperCase()}`}
+                          <Send className="w-4 h-4" />
+                          Send
                         </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Send {currency.toUpperCase()}</DialogTitle>
+                          <DialogDescription>
+                            Enter the recipient's address and amount to send
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 mt-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="send-address">Recipient Address</Label>
+                            <Input
+                              id="send-address"
+                              placeholder={`Enter ${currency.toUpperCase()} address`}
+                              value={sendAddress}
+                              onChange={(e) => setSendAddress(e.target.value)}
+                              className="font-mono text-sm"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="send-amount">Amount</Label>
+                            <Input
+                              id="send-amount"
+                              type="number"
+                              placeholder="0.00"
+                              value={sendAmount}
+                              min="0"
+                              step="0.00000001"
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (parseFloat(value) < 0) return;
+                                setSendAmount(value);
+                              }}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Available balance: ${formatLargeNumber(balance)}
+                            </p>
+                          </div>
+                          <Button 
+                            className="w-full" 
+                            onClick={handleSend}
+                            disabled={sendLoading}
+                          >
+                            {sendLoading ? 'Sending...' : `Send ${currency.toUpperCase()}`}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+
+                    <Dialog open={receiveDialogOpen && receivingCurrency === currency} onOpenChange={(open) => {
+                      setReceiveDialogOpen(open);
+                      if (open) setReceivingCurrency(currency);
+                    }}>
+                      <DialogTrigger asChild>
+                        <Button 
+                          variant="outline"
+                          className="flex-1 gap-2" 
+                          onClick={() => setReceivingCurrency(currency)}
+                        >
+                          <Download className="w-4 h-4" />
+                          Receive
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Receive {currency.toUpperCase()}</DialogTitle>
+                          <DialogDescription>
+                            Share this address or QR code to receive {currency.toUpperCase()}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-6 mt-4">
+                          <div className="flex justify-center p-6 bg-white rounded-lg">
+                            <QRCodeSVG 
+                              value={address} 
+                              size={200}
+                              level="H"
+                              includeMargin={true}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Your {currency.toUpperCase()} Address</Label>
+                            <div className="flex items-center gap-2 p-3 bg-secondary/50 rounded-lg border border-border">
+                              <code className="flex-1 text-sm font-mono break-all">{address}</code>
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                onClick={() => copyWalletAddress(currency)}
+                                className="shrink-0"
+                              >
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </TabsContent>
               );
             })}
