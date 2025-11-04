@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatLargeNumber } from '@/lib/utils';
 import { Html5Qrcode } from 'html5-qrcode';
+import { RocketAnimation } from '@/components/RocketAnimation';
 import {
   Dialog,
   DialogContent,
@@ -310,17 +311,17 @@ const Wallet = () => {
       if (error) throw error;
 
       setBalance(newBalance);
+      setSendDialogOpen(false);
       setSendSuccess(true);
 
-      // Wait for animation
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Animation plays for 5 seconds, then auto-closes
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
       toast({
-        title: 'Transfer Successful!',
+        title: 'Transfer Successful! 🚀',
         description: `Sent ${amount} ${sendingCurrency.toUpperCase()} to ${sendAddress.substring(0, 10)}...`,
       });
 
-      setSendDialogOpen(false);
       setSendAddress('');
       setSendAmount('');
       setSendSuccess(false);
@@ -347,7 +348,13 @@ const Wallet = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <>
+      <RocketAnimation 
+        isOpen={sendSuccess} 
+        onComplete={() => setSendSuccess(false)} 
+      />
+      
+      <div className="space-y-4">
       {/* Main Balance Card */}
       <Card className="glass-card p-8">
         <div className="text-center space-y-4">
@@ -452,154 +459,82 @@ const Wallet = () => {
                           </DialogDescription>
                         </DialogHeader>
                         
-                         {sendSuccess ? (
-                          <div className="flex flex-col items-center justify-center py-12 space-y-6 overflow-hidden">
-                            {/* Stars background */}
-                            <div className="absolute inset-0 pointer-events-none">
-                              {[...Array(20)].map((_, i) => (
-                                <div
-                                  key={i}
-                                  className="absolute w-1 h-1 bg-primary rounded-full animate-pulse"
-                                  style={{
-                                    left: `${Math.random() * 100}%`,
-                                    top: `${Math.random() * 100}%`,
-                                    animationDelay: `${Math.random() * 2}s`,
-                                    opacity: Math.random() * 0.7 + 0.3
-                                  }}
-                                />
-                              ))}
+                        {showQrScanner ? (
+                          <div className="space-y-4 mt-4">
+                            <div className="relative">
+                              <div 
+                                id="qr-reader" 
+                                className="rounded-lg overflow-hidden border-2 border-primary"
+                              />
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="absolute top-2 right-2"
+                                onClick={stopQrScanner}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
                             </div>
-                            
-                            {/* Moon */}
-                            <div className="absolute top-8 right-8 w-16 h-16 rounded-full bg-gradient-to-br from-yellow-200 to-yellow-400 opacity-80 shadow-lg shadow-yellow-400/50" />
-                            
-                            {/* Rocket Animation */}
-                            <div className="relative z-10" style={{ animation: 'rocket-fly 2s ease-out' }}>
-                              <div className="relative">
-                                <Send className="w-16 h-16 text-primary transform rotate-45" style={{ filter: 'drop-shadow(0 0 20px hsl(var(--primary)))' }} />
-                                {/* Rocket flame */}
-                                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-8 bg-gradient-to-b from-orange-500 via-red-500 to-transparent rounded-full opacity-80 animate-pulse" />
-                              </div>
-                              {/* Smoke trail */}
-                              <div className="absolute top-12 left-1/2 -translate-x-1/2 space-y-2">
-                                {[...Array(3)].map((_, i) => (
-                                  <div
-                                    key={i}
-                                    className="w-3 h-3 bg-muted rounded-full opacity-40"
-                                    style={{
-                                      animation: `fade-out 0.8s ease-out ${i * 0.2}s forwards`
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                            
-                            <div className="space-y-2 text-center z-10 animate-fade-in" style={{ animationDelay: '1s' }}>
-                              <p className="text-2xl font-bold text-success">
-                                Transaction Complete! 🎉
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Your crypto is on its way to the moon!
-                              </p>
-                            </div>
-                            
-                            <style>{`
-                              @keyframes rocket-fly {
-                                0% {
-                                  transform: translateY(100px) scale(0.5);
-                                  opacity: 0;
-                                }
-                                50% {
-                                  transform: translateY(-20px) scale(1.1);
-                                  opacity: 1;
-                                }
-                                100% {
-                                  transform: translateY(-80px) scale(0.8);
-                                  opacity: 0.8;
-                                }
-                              }
-                            `}</style>
+                            <p className="text-sm text-center text-muted-foreground">
+                              Position the QR code within the frame
+                            </p>
                           </div>
                         ) : (
                           <div className="space-y-4 mt-4">
-                            {showQrScanner ? (
-                              <div className="space-y-4">
-                                <div className="relative">
-                                  <div 
-                                    id="qr-reader" 
-                                    className="rounded-lg overflow-hidden border-2 border-primary"
-                                  />
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    className="absolute top-2 right-2"
-                                    onClick={stopQrScanner}
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                                <p className="text-sm text-center text-muted-foreground">
-                                  Position the QR code within the frame
-                                </p>
-                              </div>
-                            ) : (
-                              <>
-                                <div className="space-y-2">
-                                  <Label htmlFor="send-address">Recipient Address</Label>
-                                  <div className="flex gap-2">
-                                    <Input
-                                      id="send-address"
-                                      placeholder={`Enter ${currency.toUpperCase()} address`}
-                                      value={sendAddress}
-                                      onChange={(e) => setSendAddress(e.target.value)}
-                                      className="font-mono text-sm flex-1"
-                                    />
-                                    <Button
-                                      type="button"
-                                      size="icon"
-                                      variant="outline"
-                                      onClick={startQrScanner}
-                                      className="shrink-0"
-                                    >
-                                      <QrCode className="w-4 h-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="send-amount">Amount</Label>
-                                  <Input
-                                    id="send-amount"
-                                    type="number"
-                                    placeholder="0.00"
-                                    value={sendAmount}
-                                    min="0"
-                                    step="0.00000001"
-                                    onChange={(e) => {
-                                      const value = e.target.value;
-                                      if (parseFloat(value) < 0) return;
-                                      setSendAmount(value);
-                                    }}
-                                  />
-                                  <p className="text-xs text-muted-foreground">
-                                    Available balance: ${formatLargeNumber(balance)}
-                                  </p>
-                                </div>
-                                <Button 
-                                  className="w-full transition-all duration-300 hover:scale-105" 
-                                  onClick={handleSend}
-                                  disabled={sendLoading}
+                            <div className="space-y-2">
+                              <Label htmlFor="send-address">Recipient Address</Label>
+                              <div className="flex gap-2">
+                                <Input
+                                  id="send-address"
+                                  placeholder={`Enter ${currency.toUpperCase()} address`}
+                                  value={sendAddress}
+                                  onChange={(e) => setSendAddress(e.target.value)}
+                                  className="font-mono text-sm flex-1"
+                                />
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="outline"
+                                  onClick={startQrScanner}
+                                  className="shrink-0"
                                 >
-                                  {sendLoading ? (
-                                    <span className="flex items-center gap-2">
-                                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                      Sending...
-                                    </span>
-                                  ) : (
-                                    `Send ${currency.toUpperCase()}`
-                                  )}
+                                  <QrCode className="w-4 h-4" />
                                 </Button>
-                              </>
-                            )}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="send-amount">Amount</Label>
+                              <Input
+                                id="send-amount"
+                                type="number"
+                                placeholder="0.00"
+                                value={sendAmount}
+                                min="0"
+                                step="0.00000001"
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (parseFloat(value) < 0) return;
+                                  setSendAmount(value);
+                                }}
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Available balance: ${formatLargeNumber(balance)}
+                              </p>
+                            </div>
+                            <Button 
+                              className="w-full transition-all duration-300 hover:scale-105" 
+                              onClick={handleSend}
+                              disabled={sendLoading}
+                            >
+                              {sendLoading ? (
+                                <span className="flex items-center gap-2">
+                                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                  Sending...
+                                </span>
+                              ) : (
+                                `Send ${currency.toUpperCase()}`
+                              )}
+                            </Button>
                           </div>
                         )}
                       </DialogContent>
@@ -662,7 +597,8 @@ const Wallet = () => {
           </Tabs>
         </Card>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
