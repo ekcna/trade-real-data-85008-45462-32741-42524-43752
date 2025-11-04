@@ -313,7 +313,7 @@ const Wallet = () => {
       setSendSuccess(true);
 
       // Wait for animation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       toast({
         title: 'Transfer Successful!',
@@ -386,10 +386,10 @@ const Wallet = () => {
         </Card>
       )}
 
-      {/* Crypto Prices and Wallet Addresses */}
+      {/* Crypto Prices and Quick Actions */}
       {Object.keys(walletAddresses).length > 0 && (
         <Card className="glass-card p-6">
-          <h3 className="text-lg font-semibold mb-4">Your Wallet Addresses</h3>
+          <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
           
           <Tabs defaultValue="bitcoin" className="w-full">
             <TabsList className="grid w-full grid-cols-4 mb-4">
@@ -421,21 +421,6 @@ const Wallet = () => {
                     </div>
                   </div>
                   
-                   <div>
-                    <p className="text-sm font-medium mb-2">Your {currency.toUpperCase()} Address</p>
-                    <div className="flex items-center gap-2 p-3 bg-secondary/50 rounded-lg border border-border">
-                      <code className="flex-1 text-sm font-mono break-all">{address}</code>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        onClick={() => copyWalletAddress(currency)}
-                        className="shrink-0"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  
                   <div className="flex gap-2">
                     <Dialog open={sendDialogOpen && sendingCurrency === currency} onOpenChange={(open) => {
                       setSendDialogOpen(open);
@@ -458,17 +443,73 @@ const Wallet = () => {
                           </DialogDescription>
                         </DialogHeader>
                         
-                        {sendSuccess ? (
-                          <div className="flex flex-col items-center justify-center py-8 space-y-4">
-                            <div className="relative">
-                              <div className="w-20 h-20 rounded-full bg-success/20 flex items-center justify-center animate-scale-in">
-                                <Send className="w-10 h-10 text-success animate-fade-in" />
-                              </div>
-                              <div className="absolute inset-0 rounded-full bg-success/20 animate-ping" />
+                         {sendSuccess ? (
+                          <div className="flex flex-col items-center justify-center py-12 space-y-6 overflow-hidden">
+                            {/* Stars background */}
+                            <div className="absolute inset-0 pointer-events-none">
+                              {[...Array(20)].map((_, i) => (
+                                <div
+                                  key={i}
+                                  className="absolute w-1 h-1 bg-primary rounded-full animate-pulse"
+                                  style={{
+                                    left: `${Math.random() * 100}%`,
+                                    top: `${Math.random() * 100}%`,
+                                    animationDelay: `${Math.random() * 2}s`,
+                                    opacity: Math.random() * 0.7 + 0.3
+                                  }}
+                                />
+                              ))}
                             </div>
-                            <p className="text-lg font-semibold text-success animate-fade-in">
-                              Transaction Successful!
-                            </p>
+                            
+                            {/* Moon */}
+                            <div className="absolute top-8 right-8 w-16 h-16 rounded-full bg-gradient-to-br from-yellow-200 to-yellow-400 opacity-80 shadow-lg shadow-yellow-400/50" />
+                            
+                            {/* Rocket Animation */}
+                            <div className="relative z-10" style={{ animation: 'rocket-fly 2s ease-out' }}>
+                              <div className="relative">
+                                <Send className="w-16 h-16 text-primary transform rotate-45" style={{ filter: 'drop-shadow(0 0 20px hsl(var(--primary)))' }} />
+                                {/* Rocket flame */}
+                                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-8 bg-gradient-to-b from-orange-500 via-red-500 to-transparent rounded-full opacity-80 animate-pulse" />
+                              </div>
+                              {/* Smoke trail */}
+                              <div className="absolute top-12 left-1/2 -translate-x-1/2 space-y-2">
+                                {[...Array(3)].map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className="w-3 h-3 bg-muted rounded-full opacity-40"
+                                    style={{
+                                      animation: `fade-out 0.8s ease-out ${i * 0.2}s forwards`
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2 text-center z-10 animate-fade-in" style={{ animationDelay: '1s' }}>
+                              <p className="text-2xl font-bold text-success">
+                                Transaction Complete! 🎉
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Your crypto is on its way to the moon!
+                              </p>
+                            </div>
+                            
+                            <style>{`
+                              @keyframes rocket-fly {
+                                0% {
+                                  transform: translateY(100px) scale(0.5);
+                                  opacity: 0;
+                                }
+                                50% {
+                                  transform: translateY(-20px) scale(1.1);
+                                  opacity: 1;
+                                }
+                                100% {
+                                  transform: translateY(-80px) scale(0.8);
+                                  opacity: 0.8;
+                                }
+                              }
+                            `}</style>
                           </div>
                         ) : (
                           <div className="space-y-4 mt-4">
@@ -576,7 +617,7 @@ const Wallet = () => {
                             Share this address or QR code to receive {currency.toUpperCase()}
                           </DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-6 mt-4">
+                          <div className="space-y-6 mt-4">
                           <div className="flex justify-center p-6 bg-white rounded-lg">
                             <QRCodeSVG 
                               value={address} 
@@ -598,6 +639,9 @@ const Wallet = () => {
                                 <Copy className="w-4 h-4" />
                               </Button>
                             </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              ⚠️ Only send {currency.toUpperCase()} to this address
+                            </p>
                           </div>
                         </div>
                       </DialogContent>
