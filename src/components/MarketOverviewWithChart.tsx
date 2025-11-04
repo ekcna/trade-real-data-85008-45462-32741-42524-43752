@@ -40,9 +40,12 @@ const MarketOverviewWithChart = ({ onCoinSelect }: MarketOverviewProps) => {
   const { data: coins, isLoading, error } = useQuery({
     queryKey: ["cryptoMarket"],
     queryFn: fetchCryptoData,
-    refetchInterval: 60000, // Increased to 60 seconds to avoid rate limiting
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 120000, // Data stays fresh for 2 minutes
+    gcTime: 300000, // Cache for 5 minutes
+    refetchInterval: 120000, // Refetch every 2 minutes
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(3000 * 2 ** attemptIndex, 30000),
   });
 
   const filteredCoins = coins?.filter(coin => 
