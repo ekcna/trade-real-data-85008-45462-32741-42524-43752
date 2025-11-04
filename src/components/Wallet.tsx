@@ -359,9 +359,9 @@ const Wallet = () => {
       </Card>
 
       {/* Holdings Card */}
-      {Object.keys(holdings).length > 0 && (
-        <Card className="glass-card p-6">
-          <h3 className="text-lg font-semibold mb-4">Your Holdings</h3>
+      <Card className="glass-card p-6">
+        <h3 className="text-lg font-semibold mb-4">Your Holdings</h3>
+        {Object.keys(holdings).length > 0 ? (
           <div className="space-y-3">
             {Object.entries(holdings).map(([coinId, quantity]) => {
               if (quantity <= 0) return null;
@@ -383,8 +383,17 @@ const Wallet = () => {
               );
             })}
           </div>
-        </Card>
-      )}
+        ) : (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-4">
+              <TrendingUp className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              No holdings yet. Visit the Market tab to start trading!
+            </p>
+          </div>
+        )}
+      </Card>
 
       {/* Crypto Prices and Quick Actions */}
       {Object.keys(walletAddresses).length > 0 && (

@@ -37,10 +37,12 @@ const MarketOverviewWithChart = ({ onCoinSelect }: MarketOverviewProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
   
-  const { data: coins, isLoading } = useQuery({
+  const { data: coins, isLoading, error } = useQuery({
     queryKey: ["cryptoMarket"],
     queryFn: fetchCryptoData,
-    refetchInterval: 30000,
+    refetchInterval: 60000, // Increased to 60 seconds to avoid rate limiting
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const filteredCoins = coins?.filter(coin => 
@@ -86,6 +88,27 @@ const MarketOverviewWithChart = ({ onCoinSelect }: MarketOverviewProps) => {
           <Skeleton key={i} className="h-20 w-full rounded-2xl" />
         ))}
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="glass-card p-8 text-center">
+        <div className="space-y-4">
+          <div className="w-16 h-16 rounded-full bg-danger/20 flex items-center justify-center mx-auto">
+            <TrendingUp className="w-8 h-8 text-danger" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Unable to Load Market Data</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              We're experiencing high traffic. Please try again in a moment.
+            </p>
+            <Button onClick={() => window.location.reload()} variant="outline">
+              Retry
+            </Button>
+          </div>
+        </div>
+      </Card>
     );
   }
 
